@@ -1,6 +1,6 @@
 #Fastapi libraries to be used
 from fastapi import FastAPI, File, UploadFile, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.responses import JSONResponse
 
 #Customer functions as well as required utility libraries
@@ -62,12 +62,10 @@ async def test_eda():
             "status": "failed",
             "error": str(e)
         }
-        
-    folder_path = r"C:\Users\HP\Desktop\excel files"
-    file_location = f'{folder_path}{os.sep}{file_name}.xlsx'#os.sep is used to seperate with a \
-    return FileResponse(file_location, media_type='application/octet-stream', filename=file_name)
     
-    return JSONResponse(content=response)
+    output = cleaned_df.to_csv(index=False)
+    return StreamingResponse(iter([output]),media_type='text/csv',headers={"Content-Disposition":"attachment;filename=test.csv"})
+    #return JSONResponse(content=response)
 
 if __name__ == "__main__":
     import uvicorn
