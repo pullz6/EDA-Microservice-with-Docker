@@ -1,9 +1,11 @@
+#Fastapi libraries to be used
 from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi.responses import FileResponse
 from fastapi.responses import JSONResponse
+
+#Customer functions as well as required utility libraries
+from eda_processor import clean_columns, imbalance_checker
 import pandas as pd
-import io
-from eda_processor import clean_columns, imbalance_checker  # Your functions
-from typing import Optional
 import numpy as np 
 
 app = FastAPI(
@@ -60,6 +62,10 @@ async def test_eda():
             "status": "failed",
             "error": str(e)
         }
+        
+    folder_path = r"C:\Users\HP\Desktop\excel files"
+    file_location = f'{folder_path}{os.sep}{file_name}.xlsx'#os.sep is used to seperate with a \
+    return FileResponse(file_location, media_type='application/octet-stream', filename=file_name)
     
     return JSONResponse(content=response)
 
