@@ -4,6 +4,7 @@ import pandas as pd
 import io
 from eda_processor import clean_columns, imbalance_checker  # Your functions
 from typing import Optional
+import numpy as np 
 
 app = FastAPI(
     title="EDA Microservice",
@@ -22,6 +23,45 @@ async def upload_file(file: UploadFile = File(...)):
         "size_bytes": len(content),
         "message": "File uploaded successfully"
     })
+
+
+@app.post("/test/")
+async def test_eda():
+    """Testing data and the eda"""
+    df = pd.DataFrame(np.random.randint(0,100,size=(100, 4)), columns=list('ABCD'))
+    
+    # Initialize response
+    response = {
+        "test_data_sample": df.head().to_dict(orient="records"),
+        "cleaning": {},
+        "imbalance_analysis": {}
+    }
+    
+    try: 
+        cleaned_df,cols_dt,cols_int = clean_columns(df)
+        response["cleaning"] = {
+            "status": "success",
+            "dtypes_after_cleaning": str(cleaned_df.dtypes.to_dict())
+        }
+    except Exception as e:
+        response["cleaning"] = {
+            "status": "failed",
+            "error": str(e)
+        }
+    
+    try: 
+        imbalance_result = imbalance_checker(df, 'A')
+        response["imbalance_analysis"] = {
+            "status": "success",
+            "result": imbalance_result
+        }
+    except Exception as e:
+        response["imbalance_analysis"] = {
+            "status": "failed",
+            "error": str(e)
+        }
+    
+    return JSONResponse(content=response)
 
 if __name__ == "__main__":
     import uvicorn

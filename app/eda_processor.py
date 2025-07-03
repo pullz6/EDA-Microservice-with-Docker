@@ -2,14 +2,17 @@ import pandas as pd
 from collections import Counter
 
 def clean_columns(df):
+    
     """Clean columns by auto-converting object types to datetime/numeric where possible.
     Returns a new DataFrame instead of modifying in-place."""
     df_clean = df.copy()
-    
+    cols_dt = []
+    cols_int = []
     for col in df_clean.select_dtypes(include=['object']).columns:
         # Try datetime conversion
         try:
             df_clean[col] = pd.to_datetime(df_clean[col])
+            cols_dt.append(col)
             continue
         except (ValueError, TypeError):
             pass
@@ -17,10 +20,11 @@ def clean_columns(df):
         # Try numeric conversion
         try:
             df_clean[col] = pd.to_numeric(df_clean[col])
+            cols_int.append(col)
         except (ValueError, TypeError):
             pass
     
-    return df_clean
+    return df_clean,cols_dt, cols_int
 
 def imbalance_checker(df, target_col):
     """Check class imbalance for a target column.
@@ -45,3 +49,12 @@ def imbalance_checker(df, target_col):
         "dominant_class": dominant_class,
         "is_imbalanced": max_ratio > 0.8  # Example threshold
     }
+
+def generate_plots(df):
+     plot_paths = generate_plots(df, output_dir=f"{output_dir}/plots")
+     results['plots'] = plot_paths
+    
+     # Save cleaned data
+     clean_path = f"{output_dir}/cleaned_data.csv"
+     df.to_csv(clean_path, index=False)
+     results['cleaned_data_path'] = clean_path
