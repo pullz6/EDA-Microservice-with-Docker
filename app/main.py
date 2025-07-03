@@ -18,13 +18,50 @@ app = FastAPI(
 @app.post("/upload/")
 async def upload_file(file: UploadFile = File(...)):
     """Upload any file and get metadata (JSON response)"""
-    content = await file.read()
-    return JSONResponse({
-        "filename": file.filename,
-        "content_type": file.content_type,
-        "size_bytes": len(content),
-        "message": "File uploaded successfully"
-    })
+    #content = await file.read()
+    df = pd.read_csv(file.file)
+    file.file.close()
+    
+    # Initialize response
+    response = {
+        "test_data_sample": df.head().to_dict(orient="records"),
+        "cleaning": {},
+        "imbalance_analysis": {}
+    }
+    
+    try: 
+        cleaned_df,cols_dt,cols_int = clean_columns(df)
+        response["cleaning"] = {
+            "status": "success",
+            "dtypes_after_cleaning": str(cleaned_df.dtypes.to_dict())
+        }
+    except Exception as e:
+        response["cleaning"] = {
+            "status": "failed",
+            "error": str(e)
+        }
+    
+    try: 
+        imbalance_result = imbalance_checker(df, 'A')
+        response["imbalance_analysis"] = {
+            "status": "success",
+            "result": imbalance_result
+        }
+    except Exception as e:
+        response["imbalance_analysis"] = {
+            "status": "failed",
+            "error": str(e)
+        }
+    
+    output = cleaned_df.to_csv(index=False)
+    return StreamingResponse(iter([output]),media_type='text/csv',headers={"Content-Disposition":"attachment;filename=test.csv"})
+    
+    #return JSONResponse({
+        #"filename": file.filename,
+        #"content_type": file.content_type,
+        #"size_bytes": len(df),
+        #"message": "File uploaded successfully"
+    #})
 
 
 @app.post("/test/")
