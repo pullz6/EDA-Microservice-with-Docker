@@ -4,7 +4,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.responses import JSONResponse
 
 #Customer functions as well as required utility libraries
-from eda_processor import clean_columns, imbalance_checker
+from eda_processor import clean_columns, imbalance_checker, tester
 import pandas as pd
 import numpy as np 
 
@@ -12,7 +12,7 @@ app = FastAPI(
     title="EDA Microservice",
     description="A reusable microservice for exploratory data analysis",
     version="0.1.0"
-)
+) 
 
 
 @app.post("/upload/")
@@ -67,7 +67,7 @@ async def upload_file(file: UploadFile = File(...)):
 @app.post("/test/")
 async def test_eda():
     """Testing data and the eda"""
-    df = pd.DataFrame(np.random.randint(0,100,size=(100, 4)), columns=list('ABCD'))
+    df = tester()
     
     # Initialize response
     response = {

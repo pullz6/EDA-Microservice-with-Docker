@@ -1,5 +1,7 @@
 import pandas as pd
+import numpy as np
 from collections import Counter
+from datetime import datetime, timedelta
 
 def clean_columns(df):
     
@@ -9,6 +11,7 @@ def clean_columns(df):
     cols_dt = []
     cols_int = []
     for col in df_clean.select_dtypes(include=['object']).columns:
+        print(df[col].type)
         # Try datetime conversion
         try:
             df_clean[col] = pd.to_datetime(df_clean[col])
@@ -50,11 +53,30 @@ def imbalance_checker(df, target_col):
         "is_imbalanced": max_ratio > 0.8  # Example threshold
     }
 
-def generate_plots(df):
-     plot_paths = generate_plots(df, output_dir=f"{output_dir}/plots")
-     results['plots'] = plot_paths
+
+def tester(rows=100): 
+    """Generate a random DataFrame with integers and datetimes"""
+    # Set random seed for reproducibility
+    np.random.seed(42)
     
-     # Save cleaned data
-     clean_path = f"{output_dir}/cleaned_data.csv"
-     df.to_csv(clean_path, index=False)
-     results['cleaned_data_path'] = clean_path
+    # Create date range
+    start_date = datetime.now()
+    dates = [start_date - timedelta(days=x) for x in range(rows)]
+    
+    # Create DataFrame
+    df = pd.DataFrame({
+        'id': np.arange(1, rows+1), 
+        'transaction_date': dates,
+        'product_id': np.random.randint(1000, 9999, size=rows),
+        'quantity': np.random.randint(1, 20, size=rows),
+        'price': np.round(np.random.uniform(5.0, 100.0, size=rows), 2),
+        'customer_id': np.random.choice(['C100', 'C101', 'C102', 'C103'], size=rows),
+        'is_completed': np.random.choice([True, False], size=rows)
+    })
+    
+    df['transaction_date'] = df['transaction_date'].astype(str)
+    
+    # Make some dates null for testing
+    df.loc[df.sample(frac=0.1).index, 'transaction_date'] = None
+    
+    return df
