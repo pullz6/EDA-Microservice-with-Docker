@@ -67,6 +67,7 @@ async def upload_file(file: UploadFile = File(...)):
 @app.post("/test/")
 async def test_eda():
     """Testing data and the eda"""
+    cleaned_df = pd.DataFrame()
     df = tester()
     
     # Initialize response
