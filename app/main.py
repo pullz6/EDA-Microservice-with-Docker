@@ -4,7 +4,7 @@ import pandas as pd
 import io
 import numpy as np
 from typing import Optional
-from eda_processor import clean_columns, imbalance_checker
+from .eda_processor import clean_columns, imbalance_checker
 
 app = FastAPI(
     title="EDA Microservice",
