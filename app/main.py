@@ -1,109 +1,108 @@
-#Fastapi libraries to be used
-from fastapi import FastAPI, File, UploadFile, HTTPException
-from fastapi.responses import FileResponse, StreamingResponse
-from fastapi.responses import JSONResponse
-
-#Customer functions as well as required utility libraries
-from eda_processor import clean_columns, imbalance_checker, tester
+from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi.responses import StreamingResponse, JSONResponse
 import pandas as pd
-import numpy as np 
+import io
+import numpy as np
+from eda_processor import clean_columns, imbalance_checker  # Your custom functions
 
 app = FastAPI(
     title="EDA Microservice",
     description="A reusable microservice for exploratory data analysis",
     version="0.1.0"
-) 
-
+)
 
 @app.post("/upload/")
 async def upload_file(file: UploadFile = File(...)):
-    """Upload any file and get metadata (JSON response)"""
-    #content = await file.read()
-    df = pd.read_csv(file.file)
-    file.file.close()
-    
-    # Initialize response
-    response = {
-        "test_data_sample": df.head().to_dict(orient="records"),
-        "cleaning": {},
-        "imbalance_analysis": {}
-    }
-    
-    try: 
-        cleaned_df,cols_dt,cols_int = clean_columns(df)
-        response["cleaning"] = {
-            "status": "success",
-            "dtypes_after_cleaning": str(cleaned_df.dtypes.to_dict())
-        }
-    except Exception as e:
-        response["cleaning"] = {
-            "status": "failed",
-            "error": str(e)
-        }
-    
-    try: 
-        imbalance_result = imbalance_checker(df, 'A')
-        response["imbalance_analysis"] = {
-            "status": "success",
-            "result": imbalance_result
-        }
-    except Exception as e:
-        response["imbalance_analysis"] = {
-            "status": "failed",
-            "error": str(e)
-        }
-    
-    output = cleaned_df.to_csv(index=False)
-    return StreamingResponse(iter([output]),media_type='text/csv',headers={"Content-Disposition":"attachment;filename=test.csv"})
-    
-    #return JSONResponse({
-        #"filename": file.filename,
-        #"content_type": file.content_type,
-        #"size_bytes": len(df),
-        #"message": "File uploaded successfully"
-    #})
+    """Endpoint for uploading and processing CSV files"""
+    try:
+        # 1. Read and validate the file
+        if not file.filename.endswith('.csv'):
+            raise HTTPException(status_code=400, detail="Only CSV files are supported")
 
+        # 2. Process the file content
+        contents = await file.read()
+        
+        try:
+            # Try reading with default UTF-8 encoding first
+            df = pd.read_csv(io.StringIO(contents.decode('utf-8')))
+        except UnicodeDecodeError:
+            # Fallback to other encodings if UTF-8 fails
+            try:
+                df = pd.read_csv(io.StringIO(contents.decode('latin-1')))
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"Failed to decode file: {str(e)}")
+        except pd.errors.EmptyDataError:
+            raise HTTPException(status_code=400, detail="The file is empty")
+        except pd.errors.ParserError:
+            raise HTTPException(status_code=400, detail="Invalid CSV format")
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Error reading CSV: {str(e)}")
+
+        # 3. Basic validation
+        if df.empty:
+            raise HTTPException(status_code=400, detail="The file contains no data")
+
+        # 4. Process the data
+        try:
+            cleaned_df, dt_cols, num_cols = clean_columns(df)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Data cleaning failed: {str(e)}")
+
+        # 5. Generate response
+        response = {
+            "filename": file.filename,
+            "original_columns": list(df.columns),
+            "cleaned_columns": list(cleaned_df.columns),
+            "converted_datetime_cols": dt_cols,
+            "converted_numeric_cols": num_cols,
+            "shape": cleaned_df.shape,
+            "sample_data": cleaned_df.head().to_dict(orient="records")
+        }
+
+        # 6. Return CSV file for download
+        csv_data = cleaned_df.to_csv(index=False)
+        return StreamingResponse(
+            io.StringIO(csv_data),
+            media_type="text/csv",
+            headers={
+                "Content-Disposition": f"attachment; filename=processed_{file.filename}"
+            }
+        )
+
+    except HTTPException:
+        raise  # Re-raise our custom HTTP exceptions
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+    finally:
+        await file.close()
 
 @app.post("/test/")
-async def test_eda():
-    """Testing data and the eda"""
-    cleaned_df = pd.DataFrame()
-    df = tester()
-    
-    # Initialize response
-    response = {
-        "test_data_sample": df.head().to_dict(orient="records"),
-        "cleaning": {},
-        "imbalance_analysis": {}
-    }
-    
-    try: 
-        cleaned_df,cols_dt,cols_int = clean_columns(df)
-        response["cleaning"] = {
+async def test_endpoint():
+    """Test endpoint with generated data"""
+    try:
+        # Create test data
+        test_data = {
+            'date': pd.date_range(start='2023-01-01', periods=5),
+            'value': np.random.randint(1, 100, 5),
+            'category': ['A', 'B', 'A', 'C', 'B']
+        }
+        df = pd.DataFrame(test_data)
+        
+        # Process the test data
+        cleaned_df, dt_cols, num_cols = clean_columns(df)
+        imbalance = imbalance_checker(cleaned_df, 'category')
+        
+        return JSONResponse({
             "status": "success",
-            "dtypes_after_cleaning": str(cleaned_df.dtypes.to_dict())
-        }
+            "test_data": df.to_dict(orient="records"),
+            "cleaning_results": {
+                "datetime_columns": dt_cols,
+                "numeric_columns": num_cols
+            },
+            "imbalance_analysis": imbalance
+        })
     except Exception as e:
-        response["cleaning"] = {
-            "status": "failed",
-            "error": str(e)
-        }
-    
-    try: 
-        imbalance_result = imbalance_checker(df, 'A')
-        response["imbalance_analysis"] = {
-            "status": "success",
-            "result": imbalance_result
-        }
-    except Exception as e:
-        response["imbalance_analysis"] = {
-            "status": "failed",
-            "error": str(e)
-        }
-    
-    output = cleaned_df.to_csv(index=False)
-    return StreamingResponse(iter([output]),media_type='text/csv',headers={"Content-Disposition":"attachment;filename=test.csv"})
-    #return JSONResponse(content=response)
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn
