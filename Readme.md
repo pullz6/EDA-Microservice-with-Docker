@@ -64,6 +64,8 @@ python app/main.py
 
 ## Project Structure
 
+The app/ has the scripts eda_processor (which has the custom functions) and main.py (which as the fastapi app)
+
 ```bash
 bash
 Copy code
@@ -76,7 +78,6 @@ project-root/
 
 ```
 
-The app/ has the scripts eda_processor (which has the custom functions) and main.py (which as the fastapi app)
 ---
 
 ## Contributing
